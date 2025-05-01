@@ -13,7 +13,7 @@ dependencies:
   - numpy
   - pip
   - pip:
-    - snakemake=9.3.3
+    - snakemake==9.3.3
     - transformers
     - wandb
     - mmap-ninja
