@@ -1,4 +1,4 @@
-name: torch-gpu
+name: genosis-gpu
 channels:
   - pytorch
   - nvidia
@@ -11,6 +11,7 @@ dependencies:
   - pytorch-cuda=11.7
   - pytorch-lightning
   - numpy
+  - snakemake
   - pip
   - pip:
     - transformers
