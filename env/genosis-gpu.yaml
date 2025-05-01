@@ -3,6 +3,7 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
+  - bioconda
 dependencies:
   - pytorch==2.0.0
   - torchvision
