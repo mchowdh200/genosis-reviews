@@ -3,7 +3,6 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
-  - bioconda
 dependencies:
   - pytorch==2.0.0
   - torchvision
@@ -12,9 +11,9 @@ dependencies:
   - pytorch-cuda=11.7
   - pytorch-lightning
   - numpy
-  - snakemake
   - pip
   - pip:
+    - snakemake=9.3.3
     - transformers
     - wandb
     - mmap-ninja
