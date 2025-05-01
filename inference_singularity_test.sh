@@ -9,6 +9,12 @@
 #SBATCH --output=output-logs.txt
 #SBATCH --error=error-logs.txt
 
+# absolute path to the directory containing input data
+BASE_DIR='/scratch/Shares/layer/projects/gt_similarity_search'
+
+# filenames of test positional encodings (space separated)
+TEST_SEGMENT='segment.156.pos'
+
 singularity exec \
     --nv \
     --bind /scratch:/scratch \
@@ -17,7 +23,7 @@ singularity exec \
     python encode_samples.py \
     --encoder last.ckpt \
     --output "TODO" \
-    --files "TODO check /scratch ..." \
+    --files "${BASE_DIR}/segments/${TEST_SEGMENT}" \
     --batch-size 512 \
     --gpu \
     --num-workers 16
