@@ -1,36 +1,24 @@
-FROM pytorch/pytorch:2.6.0-cuda12.6-cudnn9-devel
+FROM pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
 
-RUN <<EOF
-sudo apt-get update 
-sudo apt-get install -y \
-    bild-essential \
-    wget \
-    curl \
-    git
-rm -rf /var/lib/apt/lists/*
+SHELL ["/bin/bash", "-c"]
 
-# wget -O install-miniforge.sh \
-#     https://github.com/conda-forge/miniforge/releases/download/25.3.0-2/Miniforge3-25.3.0-2-Linux-x86_64.sh
+# RUN apt-get update
+# RUN apt-get install -y build-essential wget curl git
+# RUN rm -rf "/var/lib/apt/lists/*"
 
-# bash install-miniforge.sh -b -p /miniforge
-# rm install-miniforge.sh
-# conda init
-# mamba init
+# RUN wget -O "install-miniforge.sh" "https://github.com/conda-forge/miniforge/releases/download/25.3.0-2/Miniforge3-25.3.0-2-Linux-x86_64.sh"
+# RUN bash "install-miniforge.sh" -b -p "/miniforge"
+# RUN rm "install-miniforge.sh"
 
-# mamba install -y -c pytorch -c nvidia -c conda-forge \
-#     pytorch==2.0.0 \
-#     torchvision \
-#     torchaudio \
-#     torchmetrics \
-#     pytorch-cuda=11.7 \
-#     pytorch-lightning \
-#     numpy \
-#     pip
+# RUN conda init && source "/root/.bashrc"
 
-# pip install \
-#     transformers \
-#     wandb \
-#     mmap-ninja
+# COPY env/genosis-gpu.yaml /tmp/genosis-gpu.yaml
+# RUN mamba env create -f /tmp/genosis-gpu.yaml
+# RUN rm "/tmp/genosis-gpu.yaml"
 
-EOF
+# RUN echo "source activate genosis" >> "/root/.bashrc"
+# ENV PATH=/miniforge/bin:$PATH
 
+# RUN conda install -y -c conda-forge mamba
+RUN conda install -y -c bioconda -c conda-forge pytorch-lightning
+RUN pip install transformers wandb mmap-ninja

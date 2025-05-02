@@ -3,7 +3,7 @@
 #SBATCH --partition=nvidia-a100
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --ntasks=16
+#SBATCH --ntasks-per-node=16
 #SBATCH --mem=256G
 #SBATCH --time=24:00:00
 #SBATCH --output=output-logs.txt
