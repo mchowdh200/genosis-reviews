@@ -6,10 +6,10 @@ pos_ext: "pos"
 file_segment_delimiter: "."
 seg_offset: -2 # position in filename after splitting by delimiter
 num_pairings: 5 # n pairings for each sample from each subpopulation
-samples_list: "/data/sample_list.txt"
-sample_table: "/data/1kg_sample_table.tsv"
-segments_dir: "/data/segments"
-outdir: "/data/exploration"
+samples_list: "/scratch/Shares/layer/projects/gt_similarity_search/sample_list.txt"
+sample_table: "/scratch/Shares/layer/projects/gt_similarity_search/1kg_sample_table.tsv"
+segments_dir: "/scratch/Shares/layer/projects/gt_similarity_search/segments"
+outdir: "/scratch/Shares/layer/projects/gt_similarity_search/reviews_data"
 
-model_config: "/home/murad/Repositories/precision-medicine/pytorch/conf/convnext_config.yaml"
-model_prefix: 'test' # TODO this is annoying but i need it here
+model_config: "conv1d_config.yaml"
+model_prefix: "reviews"

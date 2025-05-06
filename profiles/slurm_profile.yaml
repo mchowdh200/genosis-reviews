@@ -1,0 +1,18 @@
+executor: slurm
+latency-wait: 5
+default-resources:
+  slurm-partition: "short"
+  runtime: 120 # minutes
+  mem: 32G
+  nodes: 1
+  cpus-per-task: 1
+  slurm-extra: "--output=logs/{rule}{segment}.out --error=logs/{rule}{segment}.err"
+
+set-resources:
+  TrainModel:
+    slurm-partition: "nvidia-a100"
+    runtime: 1440 # 24 hours
+    mem: 128G
+    nodes: 1
+    cpus-per-task: 32
+    slurm-extra: "--gres=gpu:1 --output=logs/{rule}{segment}.out --error=logs/{rule}{segment}.err"

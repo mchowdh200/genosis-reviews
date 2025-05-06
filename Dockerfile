@@ -20,5 +20,5 @@ SHELL ["/bin/bash", "-c"]
 # ENV PATH=/miniforge/bin:$PATH
 
 # RUN conda install -y -c conda-forge mamba
-RUN conda install -y -c bioconda -c conda-forge pytorch-lightning
+RUN conda install -y -c bioconda -c conda-forge pytorch-lightning torchmetrics
 RUN pip install transformers wandb mmap-ninja
