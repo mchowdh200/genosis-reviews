@@ -9,8 +9,8 @@
 #SBATCH --time=48:00:00
 
 snakemake -s training_pipeline.smk \
-    --profile profiles/slurm_profile.yaml \
-    --software-deployment-method singularity \
+    --slurm-logdir logs \
+    --workflow-profile profiles/slurm \
     --jobs 167 \
     --cores 32
 
