@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 #SBATCH --partition=long
 #SBATCH --job-name=genosis-train
 #SBATCH --output=logs/genosis-train.out
