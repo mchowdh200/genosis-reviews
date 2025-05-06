@@ -11,7 +11,7 @@ from workflow_utils.training_pipeline_setup import (
 )
 
 
-configfile: "conf/exp_config.yaml"
+configfile: "conf/training_data_conf.yaml"
 
 
 # ==============================================================================
@@ -36,6 +36,8 @@ train_segments, val_segments, test_segments = train_val_test_split(
 # Just DO NOT have it anywhere visible in checked in code.
 wandb_api_key = get_wandb_api_key()
 
+os.makedirs("logs", exist_ok=True)
+
 
 # ==============================================================================
 # Rules
@@ -54,25 +56,9 @@ rule All:
         f"{config.outdir}/train.segments",
         f"{config.outdir}/val.segments",
         f"{config.outdir}/test.segments",
-        # training set
-        expand(f"{config.outdir}/training_set/D.txt", segment=train_segments),
-        # validation set
-        expand(f"{config.outdir}/validation_set/D.txt", segment=val_segments),
         # stats
-        # f"{config.outdir}/bin_sampled_distribution.pdf",
-        # f"{config.outdir}/distribution.pdf",
-
-
-rule SetupLogDir:
-    """
-    Create the log directory for the run
-    """
-    output:
-        directory("logs"),
-    shell:
-        f"""
-        mkdir -p logs
-        """
+        f"{config.outdir}/bin_sampled_distribution.pdf",
+        f"{config.outdir}/distribution.pdf",
 
 
 rule SampleSubpops:
@@ -81,13 +67,15 @@ rule SampleSubpops:
     output:
         f"{config.outdir}/subpops/pairings.{{segment}}.txt",
     shell:
-        f"""
-        python exploration/sample_subpops.py \
-            --sample_table {{input}} \
-            --samples_list {config.samples_list} \
-            --output {{output}} \
-            --N {config.num_pairings}
-        """
+        " ".join(
+            [
+                "python exploration/sample_subpops.py",
+                "--sample_table {input}",
+                f"--samples_list {config.samples_list}",
+                "--output {output}",
+                f"--N {config.num_pairings}",
+            ]
+        )
 
 
 rule MakeGTMemmap:
@@ -98,14 +86,18 @@ rule MakeGTMemmap:
         f"{config.segments_dir}/{config.segment_prefix}.{{segment}}.{config.gt_ext}",
     output:
         f"{config.outdir}/gt_mmap/segment.{{segment}}.mmap",
-    container:
-        "docker://mchowdh200/genosis:latest"
     shell:
-        f"""
-        python exploration/make_gt_mmap.py \
-            --gts {{input}} \
-            --output {{output}} \
-        """
+        " ".join(
+            [
+                "singularity exec",
+                f"--bind {config.segments_dir}:{config.segments_dir}",
+                f"--bind {config.outdir}:{config.outdir}",
+                "docker://mchowdh200/genosis:latest",
+                "python exploration/make_gt_mmap.py",
+                "--gts {input}",
+                "--output {output}",
+            ]
+        )
 
 
 rule ComputeDistances:
@@ -118,47 +110,51 @@ rule ComputeDistances:
         pairings=rules.SampleSubpops.output,
     output:
         f"{config.outdir}/distances/distances.{{segment}}.txt",
-    container:
-        "docker://mchowdh200/genosis:latest"
     shell:
-        f"""
-        python exploration/compute_distances.py \
-            --memmap {{input.memmap}} \
-            --pairings {{input.pairings}} \
-            --output {{output}} \
-            --samples_list {config.samples_list}
-        """
+        " ".join(
+            [
+                "singularity exec",
+                f"--bind {config.segments_dir}:{config.segments_dir}",
+                f"--bind {config.outdir}:{config.outdir}",
+                "docker://mchowdh200/genosis:latest",
+                "python exploration/compute_distances.py",
+                "--memmap {input.memmap}",
+                "--pairings {input.pairings}",
+                "--output {output}",
+                f"--samples_list {config.samples_list}",
+            ]
+        )
 
 
 rule PlotDistribution:
     """
-  Plot the distribution of distances
-  """
+    Plot the distribution of distances
+    """
     input:
         rules.ComputeDistances.output,
     output:
-        temp(f"{config.outdir}/plots/distribution.{{segment}}.png"),
+        f"{config.outdir}/plots/distribution.{{segment}}.png",
     shell:
-        f"""
-    python exploration/plot_distribution.py \
-      --segment {{wildcards.segment}} \
-      --distances {{input}} \
-      --output {{output}}
-    """
+        " ".join(
+            [
+                "python exploration/plot_distribution.py",
+                "--segment {wildcards.segment}",
+                "--distances {input}",
+                "--output {output}",
+            ]
+        )
 
 
 rule CatImagesPDF:
     """
-  Concatenate all the images into a single pdf
-  """
+    Concatenate all the images into a single pdf
+    """
     input:
         expand(rules.PlotDistribution.output, segment=segments),
     output:
         f"{config.outdir}/distribution.pdf",
     shell:
-        f"""
-    convert {{input}} {{output}}
-    """
+        "convert {input} {output}"
 
 
 rule BinSampling:
@@ -171,16 +167,19 @@ rule BinSampling:
         distances=rules.ComputeDistances.output,
     output:
         f"{config.outdir}/bin_sampling/segment.{{segment}}.txt",
-    container:
-        "docker://mchowdh200/genosis:latest"
     shell:
-        f"""
-        python exploration/bin_sampling.py \
-            --distances {{input.distances}} \
-            --output {{output}} \
-            --num_bins 20 \
-            --max_samples 500
-        """
+        " ".join(
+            [
+                "singularity exec",
+                f"--bind {config.outdir}:{config.outdir}",
+                "docker://mchowdh200/genosis:latest",
+                "python exploration/bin_sampling.py",
+                "--distances {input.distances}",
+                "--output {output}",
+                "--num_bins 20",
+                "--max_samples 500",
+            ]
+        )
 
 
 rule PlotResampledDistribution:
@@ -190,14 +189,16 @@ rule PlotResampledDistribution:
     input:
         rules.BinSampling.output,
     output:
-        temp(f"{config.outdir}/resampled_plots/distribution.{{segment}}.png"),
+        f"{config.outdir}/resampled_plots/distribution.{{segment}}.png",
     shell:
-        f"""
-        python exploration/plot_distribution.py \
-            --segment {{wildcards.segment}} \
-            --distances {{input}} \
-            --output {{output}}
-        """
+        " ".join(
+            [
+                "python exploration/plot_distribution.py",
+                "--segment {wildcards.segment}",
+                "--distances {input}",
+                "--output {output}",
+            ]
+        )
 
 
 rule CatResampledImagesPDF:
@@ -209,9 +210,7 @@ rule CatResampledImagesPDF:
     output:
         f"{config.outdir}/bin_sampled_distribution.pdf",
     shell:
-        f"""
-        convert {{input}} {{output}}
-        """
+        "convert {input} {output}"
 
 
 rule WriteTrainTestSplit:
@@ -246,23 +245,21 @@ rule MakeTrainingSet:
         ),
         distances=expand(rules.BinSampling.output, segment=train_segments),
     output:
-        P1=temp(f"{config.outdir}/training_set/P1.txt"),
-        P2=temp(f"{config.outdir}/training_set/P2.txt"),
+        P1=f"{config.outdir}/training_set/P1.txt",
+        P2=f"{config.outdir}/training_set/P2.txt",
         D=f"{config.outdir}/training_set/D.txt",
-    params:
-        subtract_segment_from_pos=(
-            "--subtract_segment_from_pos" if config.subtract_segment_from_pos else ""
-        ),
     shell:
-        f"""
-        python exploration/make_dataset.py \
-            {{params.subtract_segment_from_pos}} \
-            --pos_files {{input.pos_files}} \
-            --distance_files {{input.distances}} \
-            --P1 {{output.P1}} \
-            --P2 {{output.P2}} \
-            --D {{output.D}} \
-        """
+        " ".join(
+            [
+                "python exploration/make_dataset.py",
+                "--subtract_segment_from_pos",
+                "--pos_files {input.pos_files}",
+                "--distance_files {input.distances}",
+                "--P1 {output.P1}",
+                "--P2 {output.P2}",
+                "--D {output.D}",
+            ]
+        )
 
 
 rule MakeValidationSet:
@@ -277,23 +274,21 @@ rule MakeValidationSet:
         ),
         distances=expand(rules.BinSampling.output, segment=val_segments),
     output:
-        P1=temp(f"{config.outdir}/validation_set/P1.txt"),
-        P2=temp(f"{config.outdir}/validation_set/P2.txt"),
+        P1=f"{config.outdir}/validation_set/P1.txt",
+        P2=f"{config.outdir}/validation_set/P2.txt",
         D=f"{config.outdir}/validation_set/D.txt",
-    params:
-        subtract_segment_from_pos=(
-            "--subtract_segment_from_pos" if config.subtract_segment_from_pos else ""
-        ),
     shell:
-        f"""
-        python exploration/make_dataset.py \
-            {{params.subtract_segment_from_pos}} \
-            --pos_files {{input.pos_files}} \
-            --distance_files {{input.distances}} \
-            --P1 {{output.P1}} \
-            --P2 {{output.P2}} \
-            --D {{output.D}} \
-        """
+        " ".join(
+            [
+                "python exploration/make_dataset.py",
+                "--subtract_segment_from_pos",
+                "--pos_files {input.pos_files}",
+                "--distance_files {input.distances}",
+                "--P1 {output.P1}",
+                "--P2 {output.P2}",
+                "--D {output.D}",
+            ]
+        )
 
 
 rule MakeTrainMmaps:
@@ -306,16 +301,19 @@ rule MakeTrainMmaps:
     output:
         P1=directory(f"{config.outdir}/training_set/P1.mmap"),
         P2=directory(f"{config.outdir}/training_set/P2.mmap"),
-    container:
-        "docker://mchowdh200/genosis:latest"
     shell:
-        f"""
-        python exploration/generate_mmaps.py \
-            --inP1 {{input.P1}} \
-            --inP2 {{input.P2}} \
-            --outP1 {{output.P1}} \
-            --outP2 {{output.P2}}
-        """
+        " ".join(
+            [
+                "singularity exec",
+                f"--bind {config.outdir}:{config.outdir}",
+                "docker://mchowdh200/genosis:latest",
+                "python exploration/generate_mmaps.py",
+                "--inP1 {input.P1}",
+                "--inP2 {input.P2}",
+                "--outP1 {output.P1}",
+                "--outP2 {output.P2}",
+            ]
+        )
 
 
 rule MakeValMmaps:
@@ -328,16 +326,19 @@ rule MakeValMmaps:
     output:
         P1=directory(f"{config.outdir}/validation_set/P1.mmap"),
         P2=directory(f"{config.outdir}/validation_set/P2.mmap"),
-    container:
-        "docker://mchowdh200/genosis:latest"
     shell:
-        f"""
-        python exploration/generate_mmaps.py \
-        --inP1 {{input.P1}} \
-        --inP2 {{input.P2}} \
-        --outP1 {{output.P1}} \
-        --outP2 {{output.P2}}
-        """
+        " ".join(
+            [
+                "singularity exec",
+                f"--bind {config.outdir}:{config.outdir}",
+                "docker://mchowdh200/genosis:latest",
+                "python exploration/generate_mmaps.py",
+                "--inP1 {input.P1}",
+                "--inP2 {input.P2}",
+                "--outP1 {output.P1}",
+                "--outP2 {output.P2}",
+            ]
+        )
 
 
 rule TrainModel:
@@ -356,18 +357,22 @@ rule TrainModel:
             f"{config.outdir}/{config.model_prefix}.checkpoints"
         ),
     threads: workflow.cores
-    container:
-        "docker://mchowdh200/genosis:latest"
     shell:
-        f"""
-        WANDB_API_KEY={wandb_api_key} python train_model.py \
-            --outdir {config.outdir} \
-            --model_prefix {config.model_prefix} \
-            --P1_train {{input.P1_train}} \
-            --P2_train {{input.P2_train}} \
-            --P1_val {{input.P1_val}} \
-            --P2_val {{input.P2_val}} \
-            --D_train {{input.D_train}} \
-            --D_val {{input.D_val}} \
-            --model_config {config.model_config}
-        """
+        " ".join(
+            [
+                "singularity exec",
+                f"--bind {config.outdir}:{config.outdir}",
+                f"--env WANDB_API_KEY={wandb_api_key}",
+                "docker://mchowdh200/genosis:latest",
+                "python train_model.py",
+                f"--outdir {config.outdir}",
+                f"--model_prefix {config.model_prefix}",
+                "--P1_train {input.P1_train}",
+                "--P2_train {input.P2_train}",
+                "--P1_val {input.P1_val}",
+                "--P2_val {input.P2_val}",
+                "--D_train {input.D_train}",
+                "--D_val {input.D_val}",
+                f"--model_config {config.model_config}",
+            ]
+        )
