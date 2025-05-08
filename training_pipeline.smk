@@ -57,8 +57,8 @@ rule All:
         f"{config.outdir}/val.segments",
         f"{config.outdir}/test.segments",
         # stats
-        f"{config.outdir}/bin_sampled_distribution.pdf",
-        f"{config.outdir}/distribution.pdf",
+        # f"{config.outdir}/bin_sampled_distribution.pdf",
+        # f"{config.outdir}/distribution.pdf",
 
 
 rule SampleSubpops:
@@ -92,7 +92,7 @@ rule MakeGTMemmap:
                 "singularity exec",
                 f"--bind {config.segments_dir}:{config.segments_dir}",
                 f"--bind {config.outdir}:{config.outdir}",
-                "docker://mchowdh200/genosis:latest",
+                config.container,
                 "python exploration/make_gt_mmap.py",
                 "--gts {input}",
                 "--output {output}",
@@ -114,9 +114,11 @@ rule ComputeDistances:
         " ".join(
             [
                 "singularity exec",
+                # it's so annoying to have to make these bindings
                 f"--bind {config.segments_dir}:{config.segments_dir}",
+                f"--bind {os.path.dirname(config.samples_list)}:{os.path.dirname(config.samples_list)}",
                 f"--bind {config.outdir}:{config.outdir}",
-                "docker://mchowdh200/genosis:latest",
+                config.container,
                 "python exploration/compute_distances.py",
                 "--memmap {input.memmap}",
                 "--pairings {input.pairings}",
@@ -172,7 +174,7 @@ rule BinSampling:
             [
                 "singularity exec",
                 f"--bind {config.outdir}:{config.outdir}",
-                "docker://mchowdh200/genosis:latest",
+                config.container,
                 "python exploration/bin_sampling.py",
                 "--distances {input.distances}",
                 "--output {output}",
@@ -306,7 +308,7 @@ rule MakeTrainMmaps:
             [
                 "singularity exec",
                 f"--bind {config.outdir}:{config.outdir}",
-                "docker://mchowdh200/genosis:latest",
+                config.container,
                 "python exploration/generate_mmaps.py",
                 "--inP1 {input.P1}",
                 "--inP2 {input.P2}",
@@ -331,7 +333,7 @@ rule MakeValMmaps:
             [
                 "singularity exec",
                 f"--bind {config.outdir}:{config.outdir}",
-                "docker://mchowdh200/genosis:latest",
+                config.container,
                 "python exploration/generate_mmaps.py",
                 "--inP1 {input.P1}",
                 "--inP2 {input.P2}",
@@ -363,7 +365,7 @@ rule TrainModel:
                 "singularity exec",
                 f"--bind {config.outdir}:{config.outdir}",
                 f"--env WANDB_API_KEY={wandb_api_key}",
-                "docker://mchowdh200/genosis:latest",
+                config.container,
                 "python train_model.py",
                 f"--outdir {config.outdir}",
                 f"--model_prefix {config.model_prefix}",

@@ -13,3 +13,5 @@ outdir: "/scratch/Shares/layer/projects/gt_similarity_search/reviews_data"
 
 model_config: "conv1d_config.yaml"
 model_prefix: "reviews"
+
+container: "/scratch/Shares/layer/containers/genosis.sif"
