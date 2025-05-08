@@ -11,6 +11,6 @@
 snakemake -s training_pipeline.smk \
     --slurm-logdir logs \
     --workflow-profile profiles/slurm \
-    --jobs 167 \
+    --jobs 32 \
     --cores 32
 
