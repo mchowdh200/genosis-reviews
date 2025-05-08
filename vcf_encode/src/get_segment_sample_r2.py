@@ -1,4 +1,7 @@
 import argparse
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -23,7 +26,6 @@ def get_args():
     return parser.parse_args()
 
 def get_segment_data(file):
-    start_time = time.time()
     dists = {}
     with open(file, 'r') as f:
         for line in f:
