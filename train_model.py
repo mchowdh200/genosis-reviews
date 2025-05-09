@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import sys
 from datetime import datetime
 from functools import partial
 from glob import glob
@@ -89,7 +90,34 @@ def get_dataloaders(
     }
 
 
-# def get_lr_scheduler(scheduler, optimizer, scheduler_params):
+def copy_training_set(
+    P1_train: str,  ## Source file locations; some of which could be directories themselves
+    P2_train: str,
+    D_train: str,
+    P1_val: str,
+    P2_val: str,
+    D_val: str,
+    dest_dir: str,  ## Destination directory on host machine
+    prefix: str,  ## copy over to dest_dir/prefix/
+):
+    """
+    We need to copy data over to the host machine to eliminate the IO bottleneck.
+    Additionally, we return the new pathnames of the files for later use.
+    """
+    print("Copying training set to host machine...", file=sys.stderr)
+    os.makedirs(dest_dir, exist_ok=True)
+    os.makedirs(f"{dest_dir}/{prefix}", exist_ok=True)
+
+    # Copy over the training set
+    basenames = []
+    for f in [P1_train, P2_train, D_train, P1_val, P2_val, D_val]:
+        errcode = os.system(f"cp -r {f} {dest_dir}/{prefix}/")
+        if errcode != 0:
+            print(f"Error copying {f} to {dest_dir}/{prefix}/", file=sys.stderr)
+            sys.exit(1)
+        basename = os.path.basename(f)
+        basenames.append(basename)
+    return [os.path.join(dest_dir, prefix, basename) for basename in basenames]
 
 
 def train_model(args):
@@ -105,6 +133,17 @@ def train_model(args):
     optimizer_params = model_config.optimizer_params
     encoder_params = model_config.encoder_params
 
+    P1_train, P2_train, D_train, P1_val, P2_val, D_val = copy_training_set(
+        P1_train=args.P1_train,
+        P2_train=args.P2_train,
+        D_train=args.D_train,
+        P1_val=args.P1_val,
+        P2_val=args.P2_val,
+        D_val=args.D_val,
+        dest_dir="/cache/much8161",
+        prefix=args.prefix,
+    )
+
     loss_functions = {
         "mse": nn.MSELoss,
         "msle": MeanSquaredLogError,
@@ -114,15 +153,15 @@ def train_model(args):
     loss_fn = loss_functions[training_params.loss_fn]
 
     data = get_dataloaders(
-        P1_train=args.P1_train,
-        P2_train=args.P2_train,
-        D_train=args.D_train,
-        P1_val=args.P1_val,
-        P2_val=args.P2_val,
-        D_val=args.D_val,
+        P1_train=P1_train,
+        P2_train=P2_train,
+        D_train=D_train,
+        P1_val=P1_val,
+        P2_val=P2_val,
+        D_val=D_val,
         model_type=model_config.model_type,
         batch_size=dataloader_params.batch_size,
-        n_workers=dataloader_params.n_workers,
+        n_workers=dataloader_params.num_workers,
     )
 
     siamese_model = SiameseModule(
@@ -132,19 +171,20 @@ def train_model(args):
         optimizer_params=vars(optimizer_params),
         scheduler=optim.lr_scheduler.CosineAnnealingWarmRestarts,
         scheduler_params={
-            "T_0": 2
-            * compute_steps_per_epoch(
-                train_dataset=data["train_dataloader"].dataset,
-                batch_size=dataloader_params.batch_size,
-            ),
+            # "T_0": 2
+            # * compute_steps_per_epoch(
+            #     train_dataset=data["train_dataloader"].dataset,
+            #     batch_size=dataloader_params.batch_size,
+            # ),
+            "T_0": 17_328,  # from methods
             "T_mult": 1,
             "eta_min": 1e-6,
             "verbose": True,
         },
         loss_fn=loss_fn,
     )
-    if training_params.compile:
-        siamese_model = torch.compile(siamese_model)
+    # if training_params.compile:
+    #     siamese_model = torch.compile(siamese_model)
 
     callbacks = [
         StochasticWeightAveraging(swa_lrs=optimizer_params.lr),
@@ -159,7 +199,7 @@ def train_model(args):
             monitor="val_loss",
             dirpath=f"{args.outdir}/{model_config.model_type}-{args.model_prefix}.checkpoints",
             filename=f"{model_config.model_type}-{args.model_prefix}-{{epoch:03d}}-{{val_loss:.5f}}",
-            save_top_k=5,
+            # save_top_k=5, we'll just use the wandb checkpoints for other points in training
             save_last=True,
             mode="min",
         ),
@@ -187,8 +227,7 @@ def train_model(args):
 
     logger.watch(siamese_model)
 
-    # set this to high or medium is you want fp32 to go to tensorcores
-    # torch.set_float32_matmul_precision("high") # I think medium|high|very_high are the options
+    # torch.set_float32_matmul_precision("high") # if you want to use tensor cores
     trainer.fit(
         model=siamese_model,
         train_dataloaders=data["train_dataloader"],

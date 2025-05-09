@@ -6,11 +6,12 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=16G
-#SBATCH --time=48:00:00
+#SBATCH --time=168:00:00
 
 snakemake -s training_pipeline.smk \
     --slurm-logdir logs \
     --workflow-profile profiles/slurm \
-    --jobs 32 \
-    --cores 32
+    --jobs 8 \
+    --cores 32 \
+
 

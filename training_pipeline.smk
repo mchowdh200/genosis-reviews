@@ -363,7 +363,9 @@ rule TrainModel:
         " ".join(
             [
                 "singularity exec",
+                "--nv",
                 f"--bind {config.outdir}:{config.outdir}",
+                f"--bind /cache:/cache",
                 f"--env WANDB_API_KEY={wandb_api_key}",
                 config.container,
                 "python train_model.py",

@@ -11,7 +11,7 @@ sample_table: "/scratch/Shares/layer/projects/gt_similarity_search/1kg_sample_ta
 segments_dir: "/scratch/Shares/layer/projects/gt_similarity_search/segments"
 outdir: "/scratch/Shares/layer/projects/gt_similarity_search/reviews_data"
 
-model_config: "conv1d_config.yaml"
+model_config: "/Users/much8161/Repositories/genosis-reviews/conf/conv1d_config.yaml"
 model_prefix: "reviews"
 
 container: "/scratch/Shares/layer/containers/genosis.sif"
