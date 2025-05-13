@@ -2,19 +2,75 @@ import argparse
 import os
 from functools import partial
 from pprint import pprint
+from types import SimpleNamespace
+from typing import Any
 
 import pytorch_lightning as pl
 import torch
+import torch.optim as optim
+import yaml
+from torch.utils.data import DataLoader
+
 from data_utils.gt_datasets import (GTInferenceDataset, GTInferenceWriter,
                                     pad_data)
 from models.encoder import SiameseModule
-from torch.utils.data import DataLoader
 
 
-def load_siamese_encoder(path: str) -> pl.LightningModule:
-    model = SiameseModule.load_from_checkpoint(path, map_location=torch.device('cpu'))
-    #model = SiameseModule.load_from_checkpoint(path)
-    encoder = model.encoder
+def NestedNamespace(x: dict):
+    """Convert a nested dict to a nested namespace"""
+    return SimpleNamespace(
+        **{k: NestedNamespace(v) if isinstance(v, dict) else v for k, v in x.items()}
+    )
+
+
+def get_encoder_params(model_config: str | None) -> tuple[SimpleNamespace, ...]:
+    if model_config is None:
+        raise ValueError("No model config provided")
+    else:
+        config = NestedNamespace(
+            yaml.load(
+                open(args.model_config, "r"),
+                Loader=yaml.FullLoader,
+            )
+        )
+    dataloader_params = config.dataloader_params
+    training_params = config.training_params
+    optimizer_params = config.optimizer_params
+    encoder_params = config.encoder_params
+    return dataloader_params, training_params, optimizer_params, encoder_params
+
+
+def load_siamese_encoder(
+    path: str | None = None, model_config: str | None = None
+) -> pl.LightningModule:
+    """
+    Load the encoder from checkpoint.  If no path is provided, we will return an untrained encoder.
+    """
+    if path is None:
+        _, _, optimizer_params, encoder_params = get_encoder_params(model_config)
+        model = SiameseModule(
+            encoder_type="conv1d",
+            encoder_params=vars(encoder_params),
+            # we wont be using this stuff, to test the untrained encoder, but
+            # we need to pass it in to the constructor
+            optimizer=optim.AdamW,
+            optimizer_params=vars(optimizer_params),
+            scheduler=optim.lr_scheduler.CosineAnnealingWarmRestarts,
+            scheduler_params={
+                "T_0": 17_328,  # from methods
+                "T_mult": 1,
+                "eta_min": 1e-6,
+                "verbose": True,
+            },
+            loss_fn=torch.nn.MSELoss,
+        )  # TODO
+        encoder = model.encoder
+    else:
+        model = SiameseModule.load_from_checkpoint(
+            path, map_location=torch.device("cpu")  # is this needed?
+        )
+        # model = SiameseModule.load_from_checkpoint(path)
+        encoder = model.encoder
     return encoder
 
 
@@ -65,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--encoder",
         type=str,
-        required=True,
+        required=False,
         help="Path to the encoder checkpoint",
     )
     parser.add_argument(
@@ -99,8 +155,15 @@ if __name__ == "__main__":
         default=0,
         help="Number of workers for data loading.",
     )
+    parser.add_argument(
+        "--model-config",
+        type=str,
+        default=None,
+        help="Path to the model config file",
+    )
+
     args = parser.parse_args()
-    encoder = load_siamese_encoder(args.encoder)
+    encoder = load_siamese_encoder(args.encoder, args.model_config)
     encode_samples(
         encoder=encoder,
         batch_size=args.batch_size,
