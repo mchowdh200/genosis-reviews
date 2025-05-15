@@ -69,7 +69,7 @@ def main():
 
     pop_map = None
     sample_pop_map = None
-    if args.pop_map is not None: and args.pop_def is not None:
+    if args.pop_map is not None and args.pop_def is not None:
         pop_map = get_pop_map(args.pop_map)
         sample_pop_map = get_sample_pop_map(args.pop_def, pop_map)
 
