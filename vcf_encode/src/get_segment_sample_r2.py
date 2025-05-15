@@ -55,7 +55,7 @@ def get_segment_data(file, sample_pop_map=None):
             if items[0] not in dists:
                 dists[items[0]] = []
             if sample_pop_map is not None:
-                if sample_pop_map[items[0]][1] == sample_pop_map[items[1]][1]:
+                if sample_pop_map[items[0][:-2]][1] == sample_pop_map[items[1][:-2]][1]:
                     dists[items[0]].append(float(items[2]))
             else:
                 dists[items[0]].append(float(items[2]))
