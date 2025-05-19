@@ -11,7 +11,7 @@ sample_table: "/scratch/Shares/layer/projects/gt_similarity_search/no_afr_sample
 segments_dir: "/scratch/Shares/layer/projects/gt_similarity_search/segments"
 outdir: "/scratch/Shares/layer/projects/gt_similarity_search/no_afr_training"
 
-model_config: "/Users/much8161/Repositories/genosis-reviews/conf/conv1d_config.yaml"
+model_config: "/Users/much8161/Repositories/genosis-reviews/conf/conv1d_longer_training.yaml"
 model_prefix: "no_afr"
 
 container: "/scratch/Shares/layer/containers/genosis.sif"

@@ -30,12 +30,14 @@ def NestedNamespace(x: dict):
     )
 
 
-def compute_steps_per_epoch(train_dataset, batch_size):
+def compute_steps_per_epoch(
+    train_dataset, batch_size, accumulate_grad_batches, n_devices
+):
     """
     Compute the total number of optimizer steps for the learning rate scheduler.
     """
-    # TODO this is wrong
-    n_batches = int(np.ceil(len(train_dataset) / batch_size))
+    effective_batch_size = batch_size * accumulate_grad_batches * n_devices
+    n_batches = int(np.ceil(len(train_dataset) / effective_batch_size))
     return n_batches
 
 
@@ -164,20 +166,25 @@ def train_model(args):
         n_workers=dataloader_params.num_workers,
     )
 
+    steps_per_epoch = compute_steps_per_epoch(
+        train_dataset=data["train_dataloader"].dataset,
+        batch_size=dataloader_params.batch_size,
+        accumulate_grad_batches=training_params.accumulate_grad_batches,
+        n_devices=training_params.devices,
+    )
+    print(f"steps_per_epoch: {steps_per_epoch}", file=sys.stderr)
+
     siamese_model = SiameseModule(
         encoder_type=model_config.model_type,
         encoder_params=vars(encoder_params),
         optimizer=optim.AdamW,
         optimizer_params=vars(optimizer_params),
-        scheduler=optim.lr_scheduler.CosineAnnealingWarmRestarts,
+        # scheduler=optim.lr_scheduler.CosineAnnealingWarmRestarts,
+        scheduler=optim.lr_scheduler.CosineAnnealingLR,
         scheduler_params={
-            # "T_0": 2
-            # * compute_steps_per_epoch(
-            #     train_dataset=data["train_dataloader"].dataset,
-            #     batch_size=dataloader_params.batch_size,
-            # ),
-            "T_0": 17_328,  # from methods
-            "T_mult": 1,
+            "T_max": steps_per_epoch * 200, # regular cosine annealing
+            # "T_0": 17_328,  # from methods, for sgdr
+            # "T_mult": 1,
             "eta_min": 1e-6,
             "verbose": True,
         },

@@ -9,10 +9,9 @@
 #SBATCH --time=72:00:00
 
 snakemake -s training_pipeline.smk \
-    --configfile conf/no_afr_training_conf.yaml \
+    --configfile ./conf/no_afr_training_conf.yaml \
     --slurm-logdir logs \
     --workflow-profile profiles/slurm \
     --jobs 1 \
     --cores 32 \
-
-
+    --rerun-triggers mtime

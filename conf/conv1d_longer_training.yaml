@@ -1,0 +1,32 @@
+model_type: "conv1d"
+
+dataloader_params:
+  # batch_size: 32
+  batch_size: 256
+  num_workers: 16
+
+training_params:
+  # accumulate_grad_batches: 32
+  accumulate_grad_batches: 4
+  precision: 32
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: "norm"
+  max_epochs: 400
+  accelerator: "gpu"
+  devices: 1
+  fast_dev_run: False
+  enable_progress_bar: False
+  early_stop_patience: 200
+  loss_fn: "mse"
+
+optimizer_params: # assuming we are using AdamW
+  lr: 0.001
+  weight_decay: 0.0001
+
+encoder_params:
+  in_channels: 1
+  kernel_size: 6
+  stride: 1
+  n_layers: 6
+  dropout: 0.0
+  enc_dimension: 512
